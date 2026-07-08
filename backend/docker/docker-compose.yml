@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # 1. Spatial Database Server
+  postgres-gis:
+    image: postgis/postgis:15-3.3
+    container_name: bjmetro-db
+    environment:
+      POSTGRES_DB: bjmetro_db
+      POSTGRES_USER: bjmetro_admin
+      POSTGRES_PASSWORD: SecretPassword123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - bjmetro-network
+    restart: always
+
+  # 2. Redis memory caching service (Stores transit routes and tickets)
+  redis-cache:
+    image: redis:7.0-alpine
+    container_name: bjmetro-cache
+    ports:
+      - "6379:6379"
+    networks:
+      - bjmetro-network
+    restart: always
+
+  # 3. Spring Boot Backend Services
+  spring-backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: bjmetro-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-gis:5432/bjmetro_db
+      SPRING_DATASOURCE_USERNAME: bjmetro_admin
+      SPRING_DATASOURCE_PASSWORD: SecretPassword123
+      SPRING_REDIS_HOST: redis-cache
+      SPRING_REDIS_PORT: 6379
+    depends_on:
+      - postgres-gis
+      - redis-cache
+    networks:
+      - bjmetro-network
+    restart: always
+
+volumes:
+  pgdata:
+
+networks:
+  bjmetro-network:
+    driver: bridge

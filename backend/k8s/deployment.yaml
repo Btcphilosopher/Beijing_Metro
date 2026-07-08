@@ -1,0 +1,89 @@
+# ============================================================================
+# Beijing Metro (北京地铁) Cloud-Native Kubernetes Configuration
+# Handles autoscaling, services, ingress bindings, and environment configs
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bjmetro-backend
+  namespace: metro-prod
+  labels:
+    app: bjmetro-backend
+spec:
+  replicas: 3 # Standard enterprise highly-available replica set
+  selector:
+    matchLabels:
+      app: bjmetro-backend
+  template:
+    metadata:
+      labels:
+        app: bjmetro-backend
+    spec:
+      containers:
+        - name: bjmetro-backend
+          image: com.beijingmetro/backend:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-gis-service:5432/bjmetro_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "bjmetro_admin"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "SecretPassword123"
+            - name: SPRING_REDIS_HOST
+              value: "redis-cache-service"
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bjmetro-backend-service
+  namespace: metro-prod
+spec:
+  type: ClusterIP
+  selector:
+    app: bjmetro-backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: bjmetro-backend-hpa
+  namespace: metro-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: bjmetro-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75

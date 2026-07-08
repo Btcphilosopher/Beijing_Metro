@@ -1,0 +1,6 @@
+{
+  "name": "北京地铁 (Beijing Metro)",
+  "description": "北京地铁（Beijing Metro）官方风格智慧出行应用。包含智能路线规划、电子乘车码、交互线路图、车站设施详情、实时运营信息及游客指南，完美支持中英文双语和深色模式。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
